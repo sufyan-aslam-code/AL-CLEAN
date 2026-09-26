@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from main import run_full_pipeline
+from core.pipeline import run_full_pipeline
 
 app = FastAPI(title="AL-Clean API")
 
