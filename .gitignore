@@ -1,6 +1,5 @@
-__pycache__/
-*.csv
-.mlflow/
-outputs/
-.streamlit/
+data/
 mlruns/
+.env
+__pycache__/
+*.pyc

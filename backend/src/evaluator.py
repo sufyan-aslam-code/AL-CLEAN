@@ -2,7 +2,7 @@ import numpy as np
 import mlflow
 from scipy.stats import wilcoxon
 from xgboost import XGBClassifier
-from sklearn.metrics import matthews_corrcoef, average_precision_score
+from sklearn.metrics import matthews_corrcoef, average_precision_score, f1_score
 from sklearn.model_selection import train_test_split
 from src.active_learner import active_learning_selection, optimize_xgboost_params
 from src.cleaner import cleanlab_scrub_labels
@@ -42,6 +42,7 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
     
     pr_auc_scores = []
     mcc_scores = []
+    f1_scores = []
     total_pruned = 0
     
     for iteration in range(1, 6):
@@ -54,15 +55,18 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
         
         mcc = matthews_corrcoef(y_test, preds)
         pr_auc = average_precision_score(y_test, probs)
+        f1 = f1_score(y_test, preds)
         
         pr_auc_scores.append(pr_auc)
         mcc_scores.append(mcc)
+        f1_scores.append(f1)
         
-        print(f"  Iteration {iteration} | MCC: {mcc:.4f} | PR-AUC: {pr_auc:.4f} | Train Size: {len(X_train)}")
+        print(f"  Iteration {iteration} | MCC: {mcc:.4f} | PR-AUC: {pr_auc:.4f} | F1: {f1:.4f} | Train Size: {len(X_train)}")
         
         # MLflow Metric Tracking
         mlflow.log_metric(f"{method_name}_MCC", mcc, step=iteration)
         mlflow.log_metric(f"{method_name}_PR_AUC", pr_auc, step=iteration)
+        mlflow.log_metric(f"{method_name}_F1", f1, step=iteration)
         mlflow.log_metric(f"{method_name}_Train_Size", len(X_train), step=iteration)
         
         # 3. Active Learning Query Selection
@@ -92,4 +96,4 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
         X_pool = X_pool[mask]
         y_pool_noisy = y_pool_noisy[mask]
         
-    return pr_auc_scores, mcc_scores, total_pruned
+    return pr_auc_scores, mcc_scores, f1_scores, total_pruned

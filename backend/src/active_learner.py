@@ -43,14 +43,15 @@ def optimize_xgboost_params(X_train, y_train, n_trials=5):
     
     return best_params
 
-def active_learning_selection(model, X_pool, n_samples=500):
+def active_learning_selection(model, X_pool, n_samples=500, metric='entropy'):
     """
-    Selects the most uncertain samples using Shannon Entropy.
+    Selects the most uncertain samples using Shannon Entropy or Margin.
     
     Args:
         model: The trained classifier capable of predict_proba.
         X_pool (np.ndarray): The unlabeled pool features.
         n_samples (int): Number of samples to select.
+        metric (str): 'entropy' or 'margin'.
         
     Returns:
         uncertain_indices (np.ndarray): Indices of the selected top N most uncertain samples.
@@ -61,10 +62,16 @@ def active_learning_selection(model, X_pool, n_samples=500):
     eps = 1e-10
     probs = np.clip(probs, eps, 1 - eps)
     
-    # Compute Shannon Entropy: -\sum p * log(p)
-    entropy = -np.sum(probs * np.log(probs), axis=1)
-    
-    # Top N indices with highest entropy (most uncertain)
-    uncertain_indices = np.argsort(entropy)[::-1][:n_samples]
+    if metric == 'entropy':
+        # Compute Shannon Entropy: -\sum p * log(p)
+        uncertainty = -np.sum(probs * np.log(probs), axis=1)
+        uncertain_indices = np.argsort(uncertainty)[::-1][:n_samples]
+    elif metric == 'margin':
+        # Margin: |P(class 0) - P(class 1)|
+        margin = np.abs(probs[:, 0] - probs[:, 1])
+        # Smallest margin = most uncertain
+        uncertain_indices = np.argsort(margin)[:n_samples]
+    else:
+        raise ValueError("metric must be 'entropy' or 'margin'")
     
     return uncertain_indices
