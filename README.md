@@ -37,6 +37,7 @@ graph TD
 
 ### 🐍 Backend (MLOps Engine)
 The backend powers the heavy computational ML pipeline, tracking, and statistical benchmarking.
+- **FastAPI Bridge**: A synchronous execution endpoint (`/run-pipeline`) that allows dynamic triggering of the ML pipeline directly from the UI.
 - **Data Loaders**: Dynamically loads real-world datasets (e.g., Kaggle Credit Card Fraud) and injects controlled label noise.
 - **Active Learner**: Selects the top $N$ uncertain samples dynamically using either Shannon Entropy ($-\sum p \log p$) or Margin-based uncertainty metrics.
 - **Cleanlab Filter**: Computes the joint distribution of noisy and true labels to prune corrupted samples in real-time.
@@ -60,6 +61,7 @@ AL-CLEAN/
 │   │   ├── active_learner.py # Optuna tuning & uncertainty sampling
 │   │   ├── cleaner.py        # Cleanlab Confident Learning wrapper
 │   │   └── evaluator.py      # Evaluation loops & statistical validation
+│   ├── api.py                # FastAPI execution bridge
 │   ├── main.py               # MLflow benchmark execution entry point
 │   ├── al_clean_pipeline.py  # Standalone pipeline script
 │   └── requirements.txt      # Python dependencies
@@ -76,39 +78,34 @@ AL-CLEAN/
 
 ## 🚀 Setup Instructions
 
-### 1. Running the Backend Engine
+### 1. Running the Backend Engine (MLflow & FastAPI)
 The backend requires Python and standard data science dependencies.
 
 ```bash
-# Navigate to the backend directory
+# Start the MLflow tracking server locally
+python -m mlflow ui --port 5000
+
+# In a new terminal, navigate to the backend directory
 cd backend
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Download the Dataset
-# Download creditcard.csv from Kaggle and place it in the /backend folder.
-
-# Execute the Core Benchmark Pipeline
-python main.py
-```
-
-To view the generated MLflow tracking experiments:
-```bash
-mlflow ui
+# Start the FastAPI backend
+python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 2. Running the Streamlit Dashboard
 
 ```bash
-# Navigate to the root directory
+# In a new terminal, navigate to the root directory
 # Install streamlit and pandas if not already installed
-pip install streamlit pandas
+pip install streamlit pandas requests
 
 # Start the Streamlit server
-streamlit run frontend/app.py
+python -m streamlit run frontend/app.py --server.port 8501
 ```
-Open `http://localhost:8501` in your browser to view the interactive AL-Clean dashboard.
+Open `http://localhost:8501` in your browser to view the interactive AL-Clean dashboard. The dashboard will automatically fetch your latest MLflow metrics!
 
 ---
 
