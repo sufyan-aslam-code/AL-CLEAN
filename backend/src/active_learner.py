@@ -31,7 +31,8 @@ def optimize_xgboost_params(X_train, y_train, n_trials=5):
         return np.mean(scores)
         
     optuna.logging.set_verbosity(optuna.logging.WARNING)
-    study = optuna.create_study(direction='maximize')
+    sampler = optuna.samplers.TPESampler(seed=42)
+    study = optuna.create_study(direction='maximize', sampler=sampler)
     print(f"  Starting Optuna optimization for {n_trials} trials...")
     study.optimize(objective, n_trials=n_trials)
     

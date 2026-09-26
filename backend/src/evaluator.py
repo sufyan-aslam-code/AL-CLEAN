@@ -20,21 +20,24 @@ def compute_statistical_significance(standard_scores, al_clean_scores):
         p_value = 1.0
     return p_value
 
-def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500):
+def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500, iterations=5, metric='entropy'):
     """
-    Evaluation loop across 5 active learning iterations.
+    Evaluation loop across active learning iterations.
     Tracks PR-AUC and MCC metrics and logs them to MLflow.
     """
     method_name = "AL-Clean" if use_cleanlab else "Standard_AL"
     print(f"\n--- Starting {method_name.replace('_', ' ')} Evaluation Loop ---")
     
     # Split: ~10% initial train, ~70% pool, ~20% test
-    X_train, X_temp, y_train_noisy, y_temp_noisy, _, y_temp_true = train_test_split(
+    X_train, X_temp, y_train_noisy, y_temp_noisy, y_train_true, y_temp_true = train_test_split(
         X, y_noisy, y_true, test_size=0.9, random_state=42, stratify=y_true
     )
-    X_pool, X_test, y_pool_noisy, y_test, _, _ = train_test_split(
-        X_temp, y_temp_noisy, y_temp_true, test_size=0.22, random_state=42 
+    print(f"[DIAGNOSTIC] Minority class after train_test_split (X_train): {np.sum(y_train_noisy == 1)} noisy labels, {np.sum(y_train_true == 1)} true labels")
+    
+    X_pool, X_test, y_pool_noisy, y_test_noisy, y_pool_true, y_test_clean = train_test_split(
+        X_temp, y_temp_noisy, y_temp_true, test_size=0.22, random_state=42, stratify=y_temp_true
     )
+    print(f"[DIAGNOSTIC] Minority class in test set (y_test_clean): {np.sum(y_test_clean == 1)}")
     
     # 0. Optuna Hyperparameter Optimization on Seed Data
     best_params = optimize_xgboost_params(X_train, y_train_noisy, n_trials=5)
@@ -45,7 +48,7 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
     f1_scores = []
     total_pruned = 0
     
-    for iteration in range(1, 6):
+    for iteration in range(1, iterations + 1):
         # 1. Train the optimized baseline classifier
         model.fit(X_train, y_train_noisy)
         
@@ -53,9 +56,9 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
         preds = model.predict(X_test)
         probs = model.predict_proba(X_test)[:, 1]
         
-        mcc = matthews_corrcoef(y_test, preds)
-        pr_auc = average_precision_score(y_test, probs)
-        f1 = f1_score(y_test, preds)
+        mcc = matthews_corrcoef(y_test_clean, preds)
+        pr_auc = average_precision_score(y_test_clean, probs)
+        f1 = f1_score(y_test_clean, preds)
         
         pr_auc_scores.append(pr_auc)
         mcc_scores.append(mcc)
@@ -74,7 +77,7 @@ def run_evaluation_loop(X, y_noisy, y_true, use_cleanlab=True, al_step_size=500)
             print("  Not enough samples left in the pool.")
             break
             
-        uncertain_indices = active_learning_selection(model, X_pool, n_samples=al_step_size)
+        uncertain_indices = active_learning_selection(model, X_pool, n_samples=al_step_size, metric=metric)
         X_selected = X_pool[uncertain_indices]
         y_selected_noisy = y_pool_noisy[uncertain_indices]
         
